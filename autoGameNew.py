@@ -83,8 +83,8 @@ def getStateFromImage():
 def avoidBombs():
     print "avoidBombs"
     moveToRight = False
-    xPosition = 550
-    yPositon = 1560
+    global  xPosition
+    global  yPositon
     for i in range(0,50):
         xoffset = random.randint(20, 200)
         yoffset = random.randint(10,100)
@@ -94,9 +94,13 @@ def avoidBombs():
         else:
             xPositionEnd = xPosition - xoffset
             yPositonEnd = yPositon - yoffset
-            if xPositionEnd < 0 or yPositonEnd < 0:
-                xPosition = 550
-                yPositon = 1560
+        if xPositionEnd < 0 or yPositonEnd < 0 or yPositonEnd < 800 or yPositon > 1600:
+            startPosition = (xPosition, yPositon)
+            endPosition = (550, 1560)
+            globalEnvironment.device.drag( startPosition, endPosition, 0.5, 100)
+            xPosition = 550
+            yPositon = 1560
+            continue
         print  "moveToRight",moveToRight, "start (",xPosition,",",yPositon,").  EndPosition (",xPositionEnd,",",yPositonEnd,")"
         globalEnvironment.device.drag((xPosition, yPositon), (xPositionEnd, yPositonEnd),0.5, 100)
         if xPositionEnd > 900:
@@ -111,6 +115,10 @@ def battling():
     global  cloverState
     shouldBeStop = False
     time.sleep(15)
+    global  xPosition
+    global  yPositon
+    xPosition = 550
+    yPositon = 1560
     while True:
         print "battling", cloverState
         getStateFromImage()
