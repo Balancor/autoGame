@@ -6,76 +6,59 @@ import gc
 import threading
 import thread
 import traceback
+import random
 
 State = Enum("State", 'Idle ReadyToEntryEndlessMode EndlessModeRankings EndlessModeAttacking EndlessModeReliveState EndlessModeGetGiftsState ContinueEndlessModeState')
-"""
-class BattlingThread(threading.Thread):
-    def getSnapshotAndGotoNextState(self):
-        shouldBeStop = False
-        while not shouldBeStop:
-            sourceImage = device.takeSnapshot()
-            tempState = getStateFromImage(sourceImage)
-            if tempState is State.EndlessModeReliveState:
-                shouldBeStop = True
-"""
+cloverState = State.Idle
 
 SAME_AS_PRECENT = 0.9
-#waitForConnection(timeout, deviceId)
 
 packageName = "com.tencent.clover"
 activityName = "com.tencent.clover.Clover"
-"""
-runComponent = packageName+'/'+activityName
-if not device:
-    device.startActivity(runComponent);
-"""
 
 
-
-def clickButton(globalEnvironment, buttonPosition):
-    print "clickButton"
-    print "will click position (",buttonPosition[0],buttonPosition[1],")"
+def clickButton(buttonPosition):
+    global globalEnvironment
+    print "clickButton (",buttonPosition[0],buttonPosition[1],")"
     globalEnvironment.device.touch(buttonPosition[0], buttonPosition[1], MonkeyDevice.DOWN_AND_UP)
 
-def gotoNextScenery(globalEnvironment, state):
-    print "gotoNextScenery"
-    print state
-    if (state == State.Idle) or (state == State.ReadyToEntryEndlessMode):
-        clickButton(globalEnvironment, globalEnvironment.endlessModeButtonPosition)
-        return
-    if state is State.EndlessModeRankings:
-        clickButton(globalEnvironment, globalEnvironment.offenseButtonPosition)
+def gotoNextScenery():
+    global globalEnvironment
+    global  cloverState
+    print "gotoNextScenery", cloverState
+    if (cloverState == State.Idle) or (cloverState == State.ReadyToEntryEndlessMode):
         time.sleep(0.5)
-        clickButton(globalEnvironment, globalEnvironment.offenseButtonPosition)
+        clickButton(globalEnvironment.endlessModeButtonPosition)
+        return
+    if cloverState is State.EndlessModeRankings:
         time.sleep(0.5)
-        clickButton(globalEnvironment, globalEnvironment.offenseButtonPosition)
+        clickButton(globalEnvironment.offenseButtonPosition)
+        return
+    if cloverState is State.EndlessModeReliveState:
         time.sleep(0.5)
+        clickButton(globalEnvironment.notRelivePosition)
         return
-    if state is State.EndlessModeAttacking:
-        if not isAttacking:
-            thread.start_new_thread(battling)
+    if cloverState is State.EndlessModeGetGiftsState:
+        time.sleep(0.5)
+        clickButton(globalEnvironment.getGiftsButtonPosition)
         return
-    if state is State.EndlessModeReliveState:
-        clickButton(globalEnvironment, globalEnvironment.notRelivePosition)
-        return
-    if state is State.EndlessModeGetGiftsState:
-        clickButton(globalEnvironment, globalEnvironment.getGiftsButtonPosition)
-        return
-    if state is State.ContinueEndlessModeState:
-        gotoNextScenery(globalEnvironment, state)
+#    if cloverState is State.ContinueEndlessModeState:
+#        gotoNextScenery()
 
 def setCloverState(state):
-    print "setcloverState"
-    print state
-    lock.acquire()
+    global  cloverState
+    print "setcloverState ", state
     cloverState = state
-    lock.release()
-    pass
 
-def getStateFromImage(globalEnvironment, sourceImage):
-    print "getStateFromImage"
-    findBestState = False
+
+def getStateFromImage():
+    global globalEnvironment
+    sourceImage = globalEnvironment.device.takeSnapshot()
     for i in range(0,7):
+        heBombsImage = sourceImage.getSubImage(globalEnvironment.HEBombsRect)
+        if heBombsImage.sameAs(globalEnvironment.HEBombsImageOrign, 0.2):
+            setCloverState(State.EndlessModeAttacking)
+            break
         notReliveButtonImage = sourceImage.getSubImage(globalEnvironment.notReliveButtonRect)
         if notReliveButtonImage.sameAs(globalEnvironment.NotReliveButtonImageOrign, SAME_AS_PRECENT):
             setCloverState(State.EndlessModeReliveState)
@@ -96,46 +79,73 @@ def getStateFromImage(globalEnvironment, sourceImage):
         if continueButtonImage.sameAs(globalEnvironment.ContinueButtonImageOrign):
             setCloverState(State.ContinueEndlessModeState)
             break
-
     del sourceImage
     gc.collect()
 
+def avoidBombs():
+    print "avoidBombs"
+    moveToRight = False
+    xPosition = 550
+    yPositon = 1560
+    for i in range(0,50):
+        xoffset = random.randint(20, 200)
+        yoffset = random.randint(10,100)
+        if moveToRight:
+            xPositionEnd = xPosition+ xoffset
+            yPositonEnd = yPositon + yoffset
+        else:
+            xPositionEnd = xPosition - xoffset
+            yPositonEnd = yPositon - yoffset
+            if xPositionEnd < 0 or yPositonEnd < 0:
+                xPosition = 550
+                yPositon = 1560
+        print  "moveToRight",moveToRight, "start (",xPosition,",",yPositon,").  EndPosition (",xPositionEnd,",",yPositonEnd,")"
+        globalEnvironment.device.drag((xPosition, yPositon), (xPositionEnd, yPositonEnd),0.5, 100)
+        if xPositionEnd > 900:
+            moveToRight = False
+        elif xPosition < 300:
+            moveToRight = True
+        xPosition = xPositionEnd
+        yPositon = yPositonEnd
+
 def battling():
-#    battlingThread = BattlingThread()
-#    battlingThread.start()
+    global globalEnvironment
+    global  cloverState
     shouldBeStop = False
-    isAttacking = True
-    while not shouldBeStop:
-        print "battling"
-        print cloverState
-        time.sleep(5.0)
-        if cloverState is State.EndlessModeReliveState:
-            shouldBeStop = True
-    isAttacking = False
+    time.sleep(15)
+    while True:
+        print "battling", cloverState
+        getStateFromImage()
+        if cloverState != State.EndlessModeAttacking:
+            break
+        avoidBombs()
 
 
-def startGame(globalEnvironment):
-    print "startGame"
+def startGame():
+    global globalEnvironment
+    global  cloverState
     isAttacking = False
     while True:
-        thread.start_new_thread(getStateFromImage, (gameGlobal, globalEnvironment.device.takeSnapshot()))
-        print "in startGame"
-        print cloverState
-        gotoNextScenery(globalEnvironment, cloverState)
-        time.sleep(0.5)
+        getStateFromImage()
+        time.sleep(2)
+        print "in startGame", cloverState
+        if cloverState is State.EndlessModeAttacking:
+            battling()
+        if cloverState is State.ContinueEndlessModeState:
+            gotoNextScenery()
+            break
+        gotoNextScenery()
+#    if cloverState is State.EndlessModeAttacking:
+#        thread.start_new_thread(battling, (globalEnvironment))
+#        return
 
 
 if __name__ == "__main__":
-    gameGlobal = GlobalEnvironment()
-    print gameGlobal.device
-    if not gameGlobal.device:
-        raise Exception("Cannot connect to device")
-#    gameGlobal.initEnvironment()
-#    gameGlobal.initAllResources()
-#    gotoNextScenery(gameGlobal, cloverState)
     global isAttacking
     global cloverState
-    global lock
-    lock = threading.Lock()
+    global globalEnvironment
+    globalEnvironment = GlobalEnvironment()
+    if not globalEnvironment.device:
+        raise Exception("Cannot connect to device")
     cloverState = State.Idle
-    startGame(gameGlobal )
+    startGame()
