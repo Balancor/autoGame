@@ -42,8 +42,6 @@ def gotoNextScenery():
         time.sleep(0.5)
         clickButton(globalEnvironment.getGiftsButtonPosition)
         return
-#    if cloverState is State.ContinueEndlessModeState:
-#        gotoNextScenery()
 
 def setCloverState(state):
     global  cloverState
@@ -132,7 +130,7 @@ def startGame():
         if cloverState is State.EndlessModeAttacking:
             battling()
         if cloverState is State.ContinueEndlessModeState:
-            gotoNextScenery()
+            clickButton(globalEnvironment.continueButtonPosition)
             break
         gotoNextScenery()
 #    if cloverState is State.EndlessModeAttacking:
